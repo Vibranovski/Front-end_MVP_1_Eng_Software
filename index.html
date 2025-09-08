@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MVP | Login → Kanban</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Header -->
+  <header class="topbar">
+    <h1 class="brand">MVP Tasks</h1>
+    <nav class="topnav">
+      <button id="logoutBtn" class="btn btn-ghost" hidden>Sair</button>
+    </nav>
+  </header>
+
+  <!-- LOGIN -->
+  <main id="loginView" class="view">
+    <section class="card login-card">
+      <h2>Entrar</h2>
+      <form id="loginForm" autocomplete="on">
+        <label>
+          Usuário
+          <input type="text" id="username" name="username" required />
+        </label>
+        <label>
+          Senha
+          <input type="password" id="password" name="password" required />
+        </label>
+        <button type="submit" class="btn btn-primary">Login</button>
+        <p id="loginMsg" class="msg"></p>
+      </form>
+    </section>
+  </main>
+
+  <!-- KANBAN -->
+  <main id="kanbanView" class="view hidden">
+    <section class="kanban-toolbar">
+      <h2>Quadro de Tarefas</h2>
+      <div class="filters">
+        <span class="hint">Arraste cartões entre colunas para mudar o status.</span>
+      </div>
+    </section>
+
+    <section class="kanban-grid">
+      <div class="column" data-status="1">
+        <header class="column-header">
+          <span class="dot dot-gray"></span>
+          <h3>A Fazer</h3>
+          <span class="count" id="count-1">0</span>
+        </header>
+        <div class="column-body droppable" id="col-1"></div>
+      </div>
+
+      <div class="column" data-status="2">
+        <header class="column-header">
+          <span class="dot dot-blue"></span>
+          <h3>Fazendo</h3>
+          <span class="count" id="count-2">0</span>
+        </header>
+        <div class="column-body droppable" id="col-2"></div>
+      </div>
+
+      <div class="column" data-status="3">
+        <header class="column-header">
+          <span class="dot dot-green"></span>
+          <h3>Feito</h3>
+          <span class="count" id="count-3">0</span>
+        </header>
+        <div class="column-body droppable" id="col-3"></div>
+      </div>
+
+      <div class="column" data-status="4">
+        <header class="column-header">
+          <span class="dot dot-red"></span>
+          <h3>Atrasado</h3>
+          <span class="count" id="count-4">0</span>
+        </header>
+        <div class="column-body droppable" id="col-4"></div>
+      </div>
+    </section>
+
+    <section id="kanbanMsg" class="msg"></section>
+  </main>
+
+  <footer class="footer">
+    <small>Rotas do backend: <code>/login</code> e <code>/tarefas/status/&lt;int:status_id&gt;</code></small>
+  </footer>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
