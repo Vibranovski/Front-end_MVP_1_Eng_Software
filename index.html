@@ -84,6 +84,25 @@
     <section id="kanbanMsg" class="msg"></section>
   </main>
 
+  <!-- Modal de Detalhes da Tarefa -->
+  <section id="taskModal" class="modal hidden">
+    <div class="modal-content card">
+      <button id="closeTaskModal" class="btn btn-ghost" style="float:right">&times;</button>
+      <h2>Detalhes da Tarefa</h2>
+      <div id="modalFields">
+        <div><b>ID:</b> <span id="modal-id"></span></div>
+        <div><b>Título:</b> <span id="modal-titulo"></span></div>
+        <div><b>Descrição:</b> <span id="modal-descricao"></span></div>
+        <div><b>Data de Criação:</b> <span id="modal-criacao"></span></div>
+        <div><b>Prazo de Conclusão:</b> <span id="modal-prazo"></span></div>
+        <div><b>Tempo Estimado:</b> <span id="modal-estimado"></span></div>
+        <div><b>Prioridade:</b> <span id="modal-prioridade"></span></div>
+        <div><b>Status:</b> <span id="modal-status"></span></div>
+        <div><b>Usuário:</b> <span id="modal-usuario"></span></div>
+      </div>
+    </div>
+  </section>
+
   <footer class="footer">
     <small>Rotas do backend: <code>/login</code> e <code>/tarefas/status/&lt;int:status_id&gt;</code></small>
   </footer>
