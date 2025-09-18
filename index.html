@@ -29,6 +29,7 @@
           <input type="password" id="password" name="password" required />
         </label>
         <button type="submit" class="btn btn-primary">Login</button>
+        <button type="button" id="addUserBtn" class="btn btn-ghost" style="margin-left:8px;">Adicionar Usuário</button>
         <p id="loginMsg" class="msg"></p>
       </form>
     </section>
@@ -40,6 +41,10 @@
       <h2>Quadro de Tarefas</h2>
       <div class="filters">
         <span class="hint">Arraste cartões entre colunas para mudar o status.</span>
+        <select id="userFilter" style="margin-left:16px; padding:8px 12px; border-radius:8px; border:1px solid #2a3142; background:#181c27; color:#7c5cff; font-weight:600;">
+          <option value="">Todos os Usuários</option>
+        </select>
+        <button id="addTaskBtn" class="btn btn-primary" style="margin-left:16px;">Criar Tarefa</button>
       </div>
     </section>
 
@@ -104,7 +109,6 @@
   </section>
 
   <footer class="footer">
-    <small>Rotas do backend: <code>/login</code> e <code>/tarefas/status/&lt;int:status_id&gt;</code></small>
   </footer>
 
   <script src="script.js" defer></script>

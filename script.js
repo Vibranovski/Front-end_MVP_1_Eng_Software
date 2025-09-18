@@ -109,8 +109,16 @@ function showKanban(){
 async function showKanbanAndLoad(){
   showKanban();
   kanbanMsg.textContent = "Carregando tarefas...";
-  await loadAllColumns();
-  kanbanMsg.textContent = "";
+  await loadUserFilter();
+  try {
+    await loadAllColumns();
+    kanbanMsg.textContent = "";
+  } catch (err) {
+    // Se falhar (ex: não autenticado), volta para login
+    showLogin();
+    kanbanMsg.textContent = "";
+    throw err;
+  }
 }
 
 async function loadAllColumns(){
@@ -126,12 +134,17 @@ async function loadColumn(statusId){
   col.innerHTML = `<div class="msg">Carregando...</div>`;
   counter.textContent = "…";
 
-  const resp = await fetch(ROUTES.tarefasByStatus(statusId), {credentials:"include"});
+  let url;
+  if (currentUserFilter) {
+    url = `${API_BASE}/tarefas/usuario/${currentUserFilter}`;
+  } else {
+    url = ROUTES.tarefas;
+  }
+  const resp = await fetch(url, {credentials:"include"});
   if(!resp.ok){
     const txt = await safeText(resp);
     throw new Error(txt || `Falha ao buscar ${ROUTES.tarefasByStatus(statusId)}`);
   }
-  const data = await resp.json();
 
   col.innerHTML = "";
   (data || []).forEach(t => col.appendChild(createTaskCard(t)));
@@ -140,6 +153,14 @@ async function loadColumn(statusId){
   if ((data || []).length === 0) {
     col.innerHTML = `<div class="msg">Sem tarefas em “${STATUS_LABEL[statusId]}”.</div>`;
   }
+}
+
+function formatDateBR(dateStr) {
+  if (!dateStr) return "-";
+  // Aceita formatos yyyy-mm-dd ou yyyy-mm-ddTHH:mm:ss
+  const [y, m, d] = dateStr.split("T")[0].split("-");
+  if (y && m && d) return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+  return dateStr;
 }
 
 function createTaskCard(task){
@@ -249,6 +270,8 @@ async function onDrop(e){
   try{
     await updateTaskStatus(taskId, newStatusId);
     toast(`Tarefa #${taskId} → ${STATUS_LABEL[newStatusId]}`);
+    // Reload automático das colunas após mudança de status
+    await loadAllColumns();
   }catch(err){
     // rollback visual
     originParent.appendChild(dragged);
@@ -307,3 +330,221 @@ async function retry(fn, times = 1){
   throw lastErr;
 }
 function wait(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+// ======== MODAL CRIAR TAREFA ========
+addTaskBtn.addEventListener("click", async () => {
+  addTaskForm.reset();
+  addTaskMsg.textContent = "";
+  await loadPrioridades();
+  await loadStatus();
+  await loadCategorias();
+  addTaskModal.classList.remove("hidden");
+});
+
+closeAddTaskModal.addEventListener("click", () => addTaskModal.classList.add("hidden"));
+addTaskModal.addEventListener("click", (e) => {
+  if (e.target === addTaskModal) addTaskModal.classList.add("hidden");
+});
+
+// Prioridades
+async function loadPrioridades() {
+  addPrioridade.innerHTML = `<option value="">Carregando...</option>`;
+  try {
+    const resp = await fetch(`${API_BASE}/prioridades`);
+    const data = await resp.json();
+    addPrioridade.innerHTML = data.map(p =>
+      `<option value="${p.ID}">${escapeHtml(p.Nome_prioridade || p.nome)}</option>`
+    ).join("");
+  } catch {
+    addPrioridade.innerHTML = `<option value="">Erro ao carregar</option>`;
+  }
+}
+
+// Status
+async function loadStatus() {
+  addStatus.innerHTML = `<option value="">Carregando...</option>`;
+  try {
+    const resp = await fetch(`${API_BASE}/status`);
+    const data = await resp.json();
+    addStatus.innerHTML = data.map(s =>
+      `<option value="${s.ID}">${escapeHtml(s.Nome_status || s.nome)}</option>`
+    ).join("");
+  } catch {
+    addStatus.innerHTML = `<option value="">Erro ao carregar</option>`;
+  }
+}
+
+// Categorias (bolhas multiselect)
+async function loadCategorias() {
+  addCategorias.innerHTML = "";
+  try {
+    const resp = await fetch(`${API_BASE}/categoria`);
+    const data = await resp.json();
+    data.forEach(cat => {
+      const bubble = document.createElement("span");
+      bubble.textContent = cat.Nome_categoria || cat.name;
+      bubble.className = "cat-bubble";
+      bubble.dataset.id = cat.ID;
+      bubble.style.cssText = `
+        padding:6px 14px; border-radius:999px; background:#222633; color:#7c5cff; cursor:pointer; user-select:none;
+        border:1px solid #2a3142; font-size:13px;
+      `;
+      bubble.addEventListener("click", function() {
+        bubble.classList.toggle("selected");
+        bubble.style.background = bubble.classList.contains("selected") ? "#7c5cff" : "#222633";
+        bubble.style.color = bubble.classList.contains("selected") ? "#fff" : "#7c5cff";
+      });
+      addCategorias.appendChild(bubble);
+    });
+  } catch {
+    addCategorias.innerHTML = `<span style="color:red;">Erro ao carregar categorias</span>`;
+  }
+}
+
+// Usuários (filtro)
+async function loadUserFilter() {
+  userFilter.innerHTML = `<option value="">Todos os Usuários</option>`;
+  try {
+    const resp = await fetch(`${API_BASE}/usuarios`);
+    const data = await resp.json();
+    data.forEach(u => {
+      const opt = document.createElement("option");
+      opt.value = u.ID;
+      opt.textContent = u.Nome_usuario;
+      userFilter.appendChild(opt);
+    });
+  } catch {
+    userFilter.innerHTML = `<option value="">Erro ao carregar usuários</option>`;
+  }
+}
+
+// Atualiza filtro ao selecionar usuário
+userFilter.addEventListener("change", async () => {
+  currentUserFilter = userFilter.value;
+  await showKanbanAndLoad();
+});
+
+// ======== SUBMIT CRIAR TAREFA ========
+addTaskForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  addTaskMsg.textContent = "";
+
+  // Validação: prazo não pode ser menor que data de início
+  const dataInicio = addTaskForm.Data_de_criacao.value;
+  const prazo = addTaskForm.Prazo_de_conclusao.value;
+  if (dataInicio && prazo && prazo < dataInicio) {
+    addTaskMsg.textContent = "O prazo de conclusão não pode ser menor que a data de início.";
+    return;
+  }
+
+  addTaskMsg.textContent = "Salvando...";
+  addTaskForm.querySelector("button[type=submit]").disabled = true;
+
+  // Monta payload
+  const payload = {
+    Titulo: addTaskForm.Titulo.value.trim(),
+    Descricao_tarefa: addTaskForm.Descricao_tarefa.value.trim(),
+    Data_de_criacao: addTaskForm.Data_de_criacao.value,
+    Prazo_de_conclusao: addTaskForm.Prazo_de_conclusao.value,
+    Tempo_estimado: addTaskForm.Tempo_estimado.value.trim(),
+    fk_prioridade: Number(addTaskForm.fk_prioridade.value),
+    fk_status: Number(addTaskForm.fk_status.value),
+    fk_usuario: 1 // Troque para o usuário logado se disponível
+  };
+
+  try {
+    // Cria tarefa
+    const resp = await fetch(`${API_BASE}/tarefas`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      credentials: "include",
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) throw new Error(await safeText(resp));
+    const result = await resp.json();
+    const tarefaId = result.id;
+
+    // Categorias selecionadas
+    const selectedCats = Array.from(addCategorias.querySelectorAll(".cat-bubble.selected"))
+      .map(b => Number(b.dataset.id));
+    // Adiciona relação categoria_tarefa
+    for (const catId of selectedCats) {
+      await fetch(`${API_BASE}/categoria_tarefa`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        credentials: "include",
+        body: JSON.stringify({ fk_tarefa: tarefaId, fk_categoria: catId })
+      });
+    }
+
+    addTaskMsg.textContent = "Tarefa criada!";
+    addTaskModal.classList.add("hidden");
+    await showKanbanAndLoad();
+  } catch (err) {
+    addTaskMsg.textContent = err.message || "Erro ao criar tarefa.";
+  } finally {
+    addTaskForm.querySelector("button[type=submit]").disabled = false;
+  }
+});
+
+deleteTaskBtn.addEventListener("click", async () => {
+  const modal = document.getElementById("taskModal");
+  const taskId = modal.dataset.taskId;
+  if (!taskId) return;
+  // Removido o confirm
+  deleteTaskMsg.textContent = "Excluindo...";
+  deleteTaskBtn.disabled = true;
+  try {
+    const resp = await fetch(`${API_BASE}/tarefas/${taskId}`, {
+      method: "DELETE",
+      credentials: "include"
+    });
+    if (!resp.ok) throw new Error(await safeText(resp));
+    deleteTaskMsg.textContent = "Tarefa excluída!";
+    modal.classList.add("hidden");
+    await showKanbanAndLoad();
+  } catch (err) {
+    deleteTaskMsg.textContent = err.message || "Erro ao excluir tarefa.";
+  } finally {
+    deleteTaskBtn.disabled = false;
+  }
+});
+
+// Abrir modal de adicionar usuário
+addUserBtn.addEventListener("click", () => {
+  addUserForm.reset();
+  addUserMsg.textContent = "";
+  addUserModal.classList.remove("hidden");
+});
+
+// Fechar modal de adicionar usuário
+closeAddUserModal.addEventListener("click", () => addUserModal.classList.add("hidden"));
+addUserModal.addEventListener("click", (e) => {
+  if (e.target === addUserModal) addUserModal.classList.add("hidden");
+});
+
+// Submeter novo usuário
+addUserForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  addUserMsg.textContent = "Salvando...";
+  addUserForm.querySelector("button[type=submit]").disabled = true;
+  const payload = {
+    Nome_usuario: addUserForm.Nome_usuario.value.trim(),
+    senha: addUserForm.senha.value
+  };
+  try {
+    const resp = await fetch(`${API_BASE}/adicionarusuario`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      credentials: "include",
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) throw new Error(await safeText(resp));
+    addUserMsg.textContent = "Usuário criado com sucesso!";
+    setTimeout(() => addUserModal.classList.add("hidden"), 1200);
+  } catch (err) {
+    addUserMsg.textContent = err.message || "Erro ao criar usuário.";
+  } finally {
+    addUserForm.querySelector("button[type=submit]").disabled = false;
+  }
+});
