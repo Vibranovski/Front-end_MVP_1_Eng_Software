@@ -18,6 +18,24 @@ const loginForm  = document.getElementById("loginForm");
 const loginMsg   = document.getElementById("loginMsg");
 const kanbanMsg  = document.getElementById("kanbanMsg");
 const logoutBtn  = document.getElementById("logoutBtn");
+const addTaskBtn = document.getElementById("addTaskBtn");
+const addTaskModal = document.getElementById("addTaskModal");
+const closeAddTaskModal = document.getElementById("closeAddTaskModal");
+const addTaskForm = document.getElementById("addTaskForm");
+const addTaskMsg = document.getElementById("addTaskMsg");
+const addPrioridade = document.getElementById("addPrioridade");
+const addStatus = document.getElementById("addStatus");
+const addCategorias = document.getElementById("addCategorias");
+const deleteTaskBtn = document.getElementById("deleteTaskBtn");
+const deleteTaskMsg = document.getElementById("deleteTaskMsg");
+const addUserBtn = document.getElementById("addUserBtn");
+const addUserModal = document.getElementById("addUserModal");
+const closeAddUserModal = document.getElementById("closeAddUserModal");
+const addUserForm = document.getElementById("addUserForm");
+const addUserMsg = document.getElementById("addUserMsg");
+const userFilter = document.getElementById("userFilter");
+
+let currentUserFilter = ""; // id do usuário selecionado
 
 // ======== INICIALIZA ========
 document.addEventListener("DOMContentLoaded", () => {
@@ -26,10 +44,8 @@ document.addEventListener("DOMContentLoaded", () => {
   wirePopState();
   wireTaskModal();
 
-  // Se abrir direto em /tarefas/... mostra kanban
-  if (location.pathname.startsWith("/tarefas")) {
-    showKanbanAndLoad();
-  }
+  // Tenta carregar Kanban, se falhar mostra login
+  showKanbanAndLoad().catch(() => showLogin());
 });
 
 function wireTaskModal() {
