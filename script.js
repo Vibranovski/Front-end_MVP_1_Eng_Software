@@ -41,6 +41,26 @@ const userFilter = document.getElementById("userFilter");
 let currentUserFilter = ""; // id do usuário selecionado
 let loggedUserId = null;
 
+// ======== GERENCIAMENTO DE SESSÃO ========
+function saveUserSession(userId) {
+  sessionStorage.setItem('loggedUserId', userId);
+  loggedUserId = userId;
+}
+
+function loadUserSession() {
+  const savedUserId = sessionStorage.getItem('loggedUserId');
+  if (savedUserId) {
+    loggedUserId = savedUserId;
+    return true;
+  }
+  return false;
+}
+
+function clearUserSession() {
+  sessionStorage.removeItem('loggedUserId');
+  loggedUserId = null;
+}
+
 
 // ======== INICIALIZA ========
 document.addEventListener("DOMContentLoaded", () => {
@@ -49,9 +69,18 @@ document.addEventListener("DOMContentLoaded", () => {
   wirePopState();
   wireTaskModal();
 
-
-  // Tenta carregar Kanban, se falhar mostra login
-  showKanbanAndLoad().catch(() => showLogin());
+  // Tenta carregar sessão salva
+  if (loadUserSession()) {
+    // Se há sessão salva, tenta carregar Kanban
+    showKanbanAndLoad().catch(() => {
+      // Se falhar, limpa a sessão e mostra login
+      clearUserSession();
+      showLogin();
+    });
+  } else {
+    // Se não há sessão, mostra login
+    showLogin();
+  }
 });
 
 
@@ -108,9 +137,7 @@ function wireLogin() {
         throw new Error("Resposta inesperada do servidor.");
       }
 
-
-      loggedUserId = result.user_id; // Salva o id do usuário logado
-
+      saveUserSession(result.user_id); // Salva o id do usuário logado na sessão
 
       await showKanbanAndLoad();
 
@@ -133,6 +160,7 @@ function setFormEnabled(enabled){
 function wireLogout(){
   logoutBtn.addEventListener("click", async () => {
     try { await fetch(ROUTES.logout, {method:"POST", credentials:"include"}); } catch {}
+    clearUserSession(); // Limpa a sessão do usuário logado
     showLogin();
   });
 }
@@ -159,7 +187,11 @@ function showKanban(){
 
 
 // ======== KANBAN LOAD ========
-async function showKanbanAndLoad(){
+async function showKanbanAndLoad(){  
+  if (!loggedUserId) {
+    showLogin();
+    throw new Error("Usuário não está logado");
+  }
   showKanban();
   kanbanMsg.textContent = "Carregando tarefas...";
   await loadUserFilter();
@@ -674,7 +706,7 @@ addUserForm.addEventListener("submit", async (e) => {
     });
     if (!resp.ok) throw new Error(await safeText(resp));
     addUserMsg.textContent = "Usuário criado com sucesso!";
-    setTimeout(() => addUserModal.classList.add("hidden"), 1200);
+    addUserModal.classList.add("hidden");
   } catch (err) {
     addUserMsg.textContent = err.message || "Erro ao criar usuário.";
   } finally {
